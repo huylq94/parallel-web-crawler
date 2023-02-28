@@ -6,16 +6,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.CREATE;
+
 /**
  * Utility class to write a {@link CrawlResult} to file.
  */
-public final class CrawlResultWriter {
-  private final CrawlResult result;
-
+public record CrawlResultWriter(CrawlResult result) {
   /**
    * Creates a new {@link CrawlResultWriter} that will write the given {@link CrawlResult}.
    */
@@ -35,7 +37,7 @@ public final class CrawlResultWriter {
     // This is here to get rid of the unused variable warning.
     Objects.requireNonNull(path);
     // TODO: Fill in this method.
-    try (BufferedWriter bufferedWriter = Files.newBufferedWriter(path)) {
+    try (BufferedWriter bufferedWriter = Files.newBufferedWriter(path, StandardCharsets.UTF_8, CREATE, APPEND)) {
       write(bufferedWriter);
     }
   }
