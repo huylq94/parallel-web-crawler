@@ -3,8 +3,10 @@ package com.udacity.webcrawler.profiler;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.Writer;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -14,6 +16,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.CREATE;
 import static java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME;
 
 /**
@@ -32,6 +36,7 @@ final class ProfilerImpl implements Profiler {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> T wrap(Class<T> klass, T delegate) {
     Objects.requireNonNull(klass);
 
@@ -41,19 +46,21 @@ final class ProfilerImpl implements Profiler {
     List<Method> methods = new ArrayList<>(Arrays.asList(klass.getDeclaredMethods()));
     boolean profilerFlag = false;
     for (Method method : methods) {
-      if (method.isAnnotationPresent(Profiled.class)) {
-        profilerFlag = true;
-        break;
+      Annotation[] annotations = method.getAnnotations();
+      for (Annotation annotation : annotations) {
+        if (annotation instanceof Profiled) {
+          profilerFlag = true;
+          break;
+        }
       }
     }
     if (!profilerFlag) {
       throw new IllegalArgumentException(klass.getName() + "doesn't have profiled methods.");
     }
     Object proxy = Proxy.newProxyInstance(
-            ProfilerImpl.class.getClassLoader(),
-            new Class[]{klass},
-            new ProfilingMethodInterceptor(clock, delegate, state, startTime)
-    );
+            delegate.getClass().getClassLoader(),
+            new Class<?>[]{klass},
+            new ProfilingMethodInterceptor(clock, delegate, state));
     return (T) proxy;
   }
 
@@ -62,9 +69,8 @@ final class ProfilerImpl implements Profiler {
     // TODO: Write the ProfilingState data to the given file path. If a file already exists at that
     //       path, the new data should be appended to the existing file.
     if (Objects.nonNull(path)) {
-      try(Writer writer = Files.newBufferedWriter(path)) {
+      try(Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8, CREATE, APPEND)) {
         writeData(writer);
-        writer.flush();
       } catch (IOException e) {
         e.printStackTrace();
       }
